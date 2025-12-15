@@ -1,6 +1,7 @@
 import express from "npm:express"
 import {Story} from "./types.ts";
 import {setupSites, Site} from "./websites/site-handler.ts";
+import { join } from "jsr:@std/path/join";
 
 const cache : Map<string, Story[]> = new Map();
 let sites: Site[] = [];
@@ -21,6 +22,8 @@ async function main(){
 
     console.log("Creating express server");
     const app = express();
+    app.use(express.static(join(Deno.cwd(), "public/assets")));
+
     app.get("/api/get-sites", function(_: Request, res: Response){
         const data = sites.map(site => ({
             id: site.id,
