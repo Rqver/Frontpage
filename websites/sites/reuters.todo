@@ -1,0 +1,1 @@
+I had a go at this but they have lot's of anti-bot stuff and anti-scraping stuff. Could try with puppeteer-stealth-esque stuff but at that point should setup some sort of browser rotator/sharer as to not be creating a new browser for every herald & reuters request.
