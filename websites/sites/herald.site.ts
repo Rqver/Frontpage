@@ -85,7 +85,8 @@ export const site: Site = {
 
                 return results;
             });
-        } catch (_) {
+        } catch (e) {
+            console.log(e)
             return [];
         } finally {
             await browser.close();
