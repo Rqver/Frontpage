@@ -35,6 +35,10 @@ async function main(){
         res.json(data)
     })
 
+    app.get("/", function (_: Request, res: Response) {
+       res.sendFile(join(Deno.cwd(), "public/index.html"))
+    })
+
     app.listen(9696);
     console.log("Listening on 9696")
 }

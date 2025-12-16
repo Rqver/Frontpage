@@ -38,7 +38,7 @@ export const site: Site = {
 
             await page.goto("https://www.nzherald.co.nz/", {
                 waitUntil: "networkidle2",
-                timeout: 5000,
+                timeout: 10_000,
             });
 
             return await page.evaluate(() => {

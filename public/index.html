@@ -1,0 +1,159 @@
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Frontpage</title>
+    <link href="/css/tailwind.css" rel="stylesheet">
+    <style>
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+
+        .column-transition { transition: all 0.3s ease; }
+    </style>
+</head>
+<body class="bg-[#111111] text-gray-300 antialiased min-h-screen font-sans">
+
+<main class="p-4 md:p-6">
+    <div id="masonry-root" class="flex gap-6 items-start justify-center">
+        <div class="text-gray-500 animate-pulse mt-10">Loading...</div>
+    </div>
+</main>
+
+<script>
+    let allSitesData = [];
+
+    const INITIAL_STORY_COUNT = 10;
+
+    async function refreshData() {
+        try {
+            const response = await fetch('/api/get-sites');
+            if (!response.ok) throw new Error('Failed to load');
+            allSitesData = await response.json();
+
+            renderMasonry();
+        } catch (error) {
+            console.error(error);
+            document.getElementById('masonry-root').innerHTML = `<div class="text-red-500">Error loading feeds.</div>`;
+        }
+
+        setTimeout(refreshData, 30_000)
+    }
+
+    function renderMasonry() {
+        const root = document.getElementById('masonry-root');
+        const width = window.innerWidth;
+
+        let colCount = 1;
+        if (width >= 768) colCount = 2;  // md
+        if (width >= 1024) colCount = 3; // lg
+        if (width >= 1280) colCount = 4; // xl
+
+        const columns = Array.from({ length: colCount }, () => []);
+
+        allSitesData.forEach((site, index) => {
+            columns[index % colCount].push(site);
+        });
+
+        root.innerHTML = '';
+
+        columns.forEach(colSites => {
+            const colDiv = document.createElement('div');
+            colDiv.className = 'flex flex-col gap-6 flex-1 min-w-0';
+
+            colSites.forEach(site => {
+                const card = buildCard(site);
+                colDiv.appendChild(card);
+            });
+
+            root.appendChild(colDiv);
+        });
+    }
+
+    function buildCard(site) {
+        const card = document.createElement('div');
+        card.className = 'bg-[#161616] rounded-md border border-gray-800 flex flex-col shadow-lg overflow-hidden';
+
+        const header = document.createElement('div');
+        header.className = 'p-3 border-b border-gray-800 flex items-center gap-3 bg-[#1a1a1a]';
+        header.innerHTML = `
+                <img src="${site.image}" alt="${site.name}" class="w-5 h-5 object-contain rounded-sm opacity-90">
+                <h2 class="font-bold text-gray-100 text-sm uppercase tracking-wide">${site.name}</h2>
+            `;
+
+        const list = document.createElement('ul');
+        list.className = 'divide-y divide-gray-800/50';
+
+        const hasMore = site.stories.length > INITIAL_STORY_COUNT;
+
+        site.stories.forEach((story, index) => {
+            const li = document.createElement('li');
+            const isHidden = index >= INITIAL_STORY_COUNT;
+
+            li.className = `p-3 hover:bg-[#1f1f1f] transition-colors group ${isHidden ? 'hidden extra-story' : ''}`;
+
+            const breakingHtml = story.isBreaking
+                ? `<div class="shrink-0 pt-1.5 mr-2.5">
+                         <span class="flex relative h-2.5 w-2.5">
+                           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                           <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600"></span>
+                         </span>
+                       </div>`
+                : '';
+
+            const titleColor = story.isBreaking ? 'text-white font-semibold' : 'text-gray-100 group-hover:text-blue-400';
+
+            li.innerHTML = `
+                    <a href="${story.link}" target="_blank" class="flex items-start text-sm leading-snug">
+                        ${breakingHtml}
+                        <span class="${titleColor} transition-colors">${story.title}</span>
+                    </a>
+                `;
+            list.appendChild(li);
+        });
+
+        const footer = document.createElement('div');
+        if (hasMore) {
+            footer.className = 'p-2 border-t border-gray-800 bg-[#181818]';
+            const btn = document.createElement('button');
+            btn.className = 'text-xs font-bold text-gray-500 hover:text-white uppercase tracking-widest w-full py-1.5 transition-colors';
+            btn.innerText = 'Show More';
+
+            let expanded = false;
+
+            btn.onclick = () => {
+                const hiddenItems = list.querySelectorAll('.extra-story');
+                expanded = !expanded;
+
+                if (expanded) {
+                    hiddenItems.forEach(el => el.classList.remove('hidden'));
+                    btn.innerText = 'Show Less';
+                } else {
+                    hiddenItems.forEach(el => el.classList.add('hidden'));
+                    btn.innerText = 'Show More';
+                    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            };
+            footer.appendChild(btn);
+        }
+
+        card.appendChild(header);
+        card.appendChild(list);
+        if (hasMore) card.appendChild(footer);
+
+        return card;
+    }
+
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            renderMasonry();
+        }, 200);
+    });
+
+    refreshData();
+</script>
+</body>
+</html>
