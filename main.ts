@@ -3,6 +3,8 @@ import {Story} from "./types.ts";
 import {setupSites, Site} from "./websites/site-handler.ts";
 import { join } from "jsr:@std/path/join";
 
+const PORT = 9696;
+
 const cache : Map<string, Story[]> = new Map();
 let sites: Site[] = [];
 
@@ -39,8 +41,8 @@ async function main(){
        res.sendFile(join(Deno.cwd(), "public/index.html"))
     })
 
-    app.listen(9696);
-    console.log("Listening on 9696")
+    app.listen(PORT);
+    console.log(`Listening on http://localhost:${PORT}`)
 }
 
 Deno.cron("Refresh cache", "* * * * *", refreshCache)
