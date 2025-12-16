@@ -16,7 +16,6 @@ const extractStory = (element: cheerio.Cheerio<any>): Story | null => {
     }
 
     if (!url) return null;
-    url = `https://www.nbr.co.nz${url}`;
 
     return {
         title: title,
