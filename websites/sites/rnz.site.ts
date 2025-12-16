@@ -1,9 +1,17 @@
 import * as cheerio from 'npm:cheerio';
 import { Story } from "../../types.ts";
-import {Site} from "../site-handler.ts";
+import { Site } from "../site-handler.ts";
 
-const extractStory = (element: cheerio.Cheerio<any>): Story => {
-    const headlineTag = element.find(".o-digest__headline a").first();
+const extractStory = (element: cheerio.Cheerio<any>): Story | null => {
+    let headlineTag = element.find(".o-digest__headline a").first();
+    if (headlineTag.length === 0) {
+        headlineTag = element.find("h4 a").first();
+    }
+
+    if (headlineTag.length === 0) {
+        return null;
+    }
+
     const title = headlineTag.text().trim();
     const url = `https://rnz.co.nz${headlineTag.attr("href")}`
 
@@ -28,15 +36,25 @@ export const site: Site = {
 
         const leadStoryEl = $(".c-top-stories__primary .lead-story").first();
         if (leadStoryEl.length) {
-            stories.push(extractStory(leadStoryEl));
+            const story = extractStory(leadStoryEl);
+            if (story) stories.push(story);
         }
 
         $(".c-top-stories__primary .c-top-stories__list > li").each((_, el) => {
-            stories.push(extractStory($(el)));
+            const story = extractStory($(el));
+            if (story) stories.push(story);
         });
 
         $(".c-top-stories__secondary .c-top-stories__secondary-list > li").each((_, el) => {
-            stories.push(extractStory($(el)));
+            const story = extractStory($(el));
+            if (story) stories.push(story);
+        });
+
+        $(".t-home-briefing .o-category").each((_, category) => {
+            $(category).find(".o-category__list > li").each((_, el) => {
+                const story = extractStory($(el));
+                if (story) stories.push(story);
+            });
         });
 
         return stories;
