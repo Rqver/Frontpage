@@ -3,7 +3,10 @@ import { Story } from "../../types.ts";
 import {Site} from "../site-handler.ts";
 
 const extractStory = (element: cheerio.Cheerio<any>): Story | null => {
-    const headlineTag = element.find(".card-title a").first();
+    const headlineTag = element
+      .find(".card-title a")
+      .filter((_, el) => !el.attribs?.href?.includes("/journalist/"))
+      .first();
 
     if (headlineTag.length === 0) {
         return null;
