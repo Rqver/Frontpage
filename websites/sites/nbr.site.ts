@@ -17,6 +17,8 @@ const extractStory = (element: cheerio.Cheerio<any>): Story | null => {
 
     if (!url) return null;
 
+    if (!url.includes('nbr.co.nz')) url = `https://nbr.co.nz/${url}`
+
     return {
         title: title,
         isBreaking: false,
