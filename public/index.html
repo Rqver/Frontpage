@@ -11,6 +11,12 @@
         ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
 
         .column-transition { transition: all 0.3s ease; }
+
+        .toggle-checkbox:checked { right: 0; border-color: #3B82F6; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #3B82F6; }
+
+        #settings-list li { transition: transform 0.1s, opacity 0.2s, background-color 0.2s; }
+        .sortable-ghost { opacity: 0.5; background: #2a2a2a; border-color: #4b5563; }
     </style>
 </head>
 <body class="bg-[#111111] text-gray-300 antialiased min-h-screen font-sans">
@@ -20,6 +26,26 @@
         <div class="text-gray-500 animate-pulse mt-10">Loading...</div>
     </div>
 </main>
+
+<button onclick="openSettings()" class="fixed bottom-6 right-6 p-3 bg-[#1a1a1a] border border-gray-800 rounded-full shadow-lg hover:bg-[#252525] hover:border-gray-600 transition-all text-gray-400 hover:text-white z-40">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+</button>
+
+<div id="settings-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#161616] border border-gray-800 rounded-lg shadow-2xl w-full max-w-md flex flex-col max-h-[85vh]">
+        <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-[#1a1a1a] rounded-t-lg">
+            <h3 class="text-base font-bold text-gray-100 uppercase tracking-wide">Customize Feed</h3>
+            <button onclick="closeSettings()" class="text-gray-500 hover:text-white transition-colors cursor-pointer">&times;</button>
+        </div>
+        <div class="p-2 overflow-y-auto">
+            <ul id="settings-list" class="space-y-1"></ul>
+        </div>
+        <div class="p-3 border-t border-gray-800 flex justify-end gap-2 bg-[#1a1a1a] rounded-b-lg">
+            <button onclick="closeSettings()" class="text-sm px-3 py-1.5 text-gray-400 hover:text-white transition-colors">Cancel</button>
+            <button onclick="saveSettings()" class="text-sm px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded font-medium transition-colors">Save</button>
+        </div>
+    </div>
+</div>
 
 <script>
     let allSitesData = [];
@@ -52,7 +78,7 @@
 
         const columns = Array.from({ length: colCount }, () => []);
 
-        allSitesData.forEach((site, index) => {
+        getProcessedData().forEach((site, index) => {
             columns[index % colCount].push(site);
         });
 
@@ -154,6 +180,123 @@
     });
 
     refreshData();
+
+    function getProcessedData() {
+        const saved = JSON.parse(localStorage.getItem('order') || '[]');
+        if (!saved.length) return allSitesData;
+
+        const prefsMap = new Map(saved.map(p => [p.id, p]));
+        return allSitesData
+            .filter(site => {
+                const p = prefsMap.get(site.id);
+                return p ? p.visible : true;
+            })
+            .sort((a, b) => {
+                const indexA = saved.findIndex(p => p.id === a.id);
+                const indexB = saved.findIndex(p => p.id === b.id);
+                return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+            });
+    }
+
+    function openSettings() {
+        const list = document.getElementById('settings-list');
+        list.innerHTML = '';
+
+        const saved = JSON.parse(localStorage.getItem('order') || '[]');
+        const existingIds = new Set(saved.map(p => p.id));
+        const allSorted = [...saved];
+
+        allSitesData.forEach(site => {
+            if (!existingIds.has(site.id)) allSorted.push({ id: site.id, visible: true });
+        });
+
+        const dataMap = new Map(allSitesData.map(s => [s.id, s]));
+
+        allSorted.forEach(pref => {
+            const site = dataMap.get(pref.id);
+            if (!site) return;
+
+            const li = document.createElement('li');
+            li.draggable = true;
+            li.dataset.id = site.id;
+            li.className = 'flex items-center gap-3 p-3 bg-[#1e1e1e] border border-gray-800 rounded cursor-grab active:cursor-grabbing hover:bg-[#252525] select-none';
+
+            li.innerHTML = `
+                <div class="text-gray-600">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h16M4 16h16"></path></svg>
+                </div>
+                <img src="${site.image}" class="w-5 h-5 rounded-sm opacity-80 pointer-events-none" />
+                <span class="flex-1 font-medium text-sm text-gray-200 pointer-events-none">${site.name}</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" class="sr-only peer" ${pref.visible ? 'checked' : ''}>
+                    <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            `;
+
+            li.addEventListener('dragstart', handleDragStart);
+            li.addEventListener('dragover', handleDragOver);
+            li.addEventListener('drop', handleDrop);
+            li.addEventListener('dragend', handleDragEnd);
+            list.appendChild(li);
+        });
+
+        document.getElementById('settings-modal').classList.remove('hidden');
+    }
+
+    function closeSettings() {
+        document.getElementById('settings-modal').classList.add('hidden');
+    }
+
+    function saveSettings() {
+        const items = document.querySelectorAll('#settings-list li');
+        const order = Array.from(items).map(li => ({
+            id: li.dataset.id,
+            visible: li.querySelector('input[type="checkbox"]').checked
+        }));
+
+        localStorage.setItem('order', JSON.stringify(order));
+        closeSettings();
+        renderMasonry();
+    }
+
+    let draggedItem = null;
+
+    function handleDragStart(e) {
+        draggedItem = this;
+        e.dataTransfer.effectAllowed = 'move';
+        this.classList.add('sortable-ghost');
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault();
+
+        const target = e.currentTarget;
+        if (target === draggedItem || target.nodeName !== 'LI') return;
+
+        const list = target.parentNode;
+        const bounding = target.getBoundingClientRect();
+        const offset = bounding.y + (bounding.height / 2);
+
+        if (e.clientY - offset > 0) {
+            if (target.nextSibling !== draggedItem) {
+                list.insertBefore(draggedItem, target.nextSibling);
+            }
+        } else {
+            if (target.previousSibling !== draggedItem) {
+                list.insertBefore(draggedItem, target);
+            }
+        }
+    }
+
+    function handleDrop(e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+
+    function handleDragEnd(e) {
+        this.classList.remove('sortable-ghost');
+        draggedItem = null;
+    }
 </script>
 </body>
 </html>
