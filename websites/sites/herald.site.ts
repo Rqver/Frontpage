@@ -1,45 +1,39 @@
-import puppeteer from "npm:puppeteer";
 import {Story} from "../../types.ts";
 import {Site} from "../site-handler.ts";
+import {getCurrentBrowser, gotoWithRetry} from "../../handlers/browser.ts";
 
-// I really did not want to have to use a headless browser but NZH's home page is extremely unnecessarily complex
-// There's a huge amount of JSON loaded as a part of the HTML which contains some stories with locked positions, but these locked positions are all over the page and aren't necessarily the first X stories, and if they were, X changes
-// Then there's this 'Karma' thing that, from my understanding uses my location and a bunch of other information it's tried to track about me to pick the rest of the stories using 'AI', but the order these stories are returned in is also completely random and don't include the X stories that have locked positions
-// And obviously this Karma thing happens after the page is loaded, hence the puppeteer, although I did try to recreate the request process it is so strangely complex that A: It gives me the vibe it would change frequently, and B: The amount of time I would have spent trying to
 export const site: Site = {
     name: "NZ Herald",
     id: "herald",
     image: "/img/herald.png",
     rank: 2,
     check: async function(): Promise<Story[]> {
-        const browser = await puppeteer.launch({
-            headless: "new",
-            args: [
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-accelerated-2d-canvas",
-                "--disable-gpu",
-            ],
-        });
-
         try {
-            const page = await browser.newPage();
+            const { page } = await getCurrentBrowser();
 
-            await page.setRequestInterception(true);
-            page.on("request", (req) => {
-                const resourceType = req.resourceType();
-                if (["image", "stylesheet", "font", "media"].includes(resourceType)) {
-                    req.abort();
-                } else {
-                    req.continue();
+            await gotoWithRetry(page, "https://www.nzherald.co.nz/", {
+                attempts: 10,
+                timeout: 3_000,
+            });
+
+            await page.waitForFunction(() => {
+                const articles = document.querySelectorAll('section[data-test-ui="top-hero-section"] article');
+
+                if (articles.length < 10) return false;
+
+                for (const article of articles) {
+                    const titleEl = article.querySelector(
+                        '[data-test-ui="story-card--headline"]'
+                    );
+
+                    if (!titleEl) return false;
+
+                    const title = titleEl.textContent?.trim();
+                    if (!title) return false;
                 }
-            });
 
-            await page.goto("https://www.nzherald.co.nz/", {
-                waitUntil: "networkidle2",
-                timeout: 10_000,
-            });
+                return true;
+            }, { timeout: 10_000 });
 
             return await page.evaluate(() => {
                 const results: Story[] = [];
@@ -88,8 +82,6 @@ export const site: Site = {
         } catch (e) {
             console.log(e)
             return [];
-        } finally {
-            await browser.close();
         }
     }
 }

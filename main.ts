@@ -2,6 +2,7 @@ import express from "npm:express"
 import {Story} from "./types.ts";
 import {setupSites, Site} from "./websites/site-handler.ts";
 import { join } from "jsr:@std/path/join";
+import {closeBrowsers} from "./handlers/browser.ts";
 
 const PORT = 9696;
 
@@ -44,6 +45,13 @@ async function main(){
     app.listen(PORT);
     console.log(`Listening on http://localhost:${PORT}`)
 }
+
+async function shutdown(){
+    await closeBrowsers();
+    Deno.exit(0);
+}
+Deno.addSignalListener("SIGINT", shutdown);
+
 
 Deno.cron("Refresh cache", "* * * * *", refreshCache)
 main()
