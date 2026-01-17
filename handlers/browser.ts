@@ -6,6 +6,23 @@ export type BrowserBundle = {
     launchedAt: number;
 };
 
+async function newPage(browser: puppeteer.Browser) {
+    const page = await browser.newPage();
+    await page.setRequestInterception(true);
+
+    page.on("request", (req) => {
+        const t = req.resourceType();
+        if (["image", "stylesheet", "font", "media"].includes(t)) {
+            req.abort();
+        } else {
+            req.continue();
+        }
+    });
+
+    return page;
+}
+
+
 async function launchBrowser(){
     const browser = await puppeteer.launch({
             args: [
@@ -17,17 +34,8 @@ async function launchBrowser(){
             ],
     });
 
-    const page = await browser.newPage();
-    await page.setRequestInterception(true);
+    const page = await newPage(browser)
 
-    page.on("request", (req) => {
-        const resourceType = req.resourceType();
-        if (["image", "stylesheet", "font", "media"].includes(resourceType)) {
-            req.abort();
-        } else {
-            req.continue();
-        }
-    });
 
     return {browser, page}
 }
@@ -73,15 +81,19 @@ export async function closeBrowsers(){
     }
 }
 
-export async function gotoWithRetry(page: puppeteer.Page, url: string, { attempts = 5, timeout = 3_000, waitUntil = "domcontentloaded", delayMs = 500, } = {}) {
+export async function gotoWithRetry(bundle: BrowserBundle, url: string, { attempts = 5, timeout = 3_000, waitUntil = "domcontentloaded", delayMs = 500,} = {}) {
     let lastError: unknown;
 
     for (let i = 0; i < attempts; i++) {
         try {
-            await page.goto(url, { waitUntil, timeout });
-            return;
+            await bundle.page.goto(url, { waitUntil, timeout });
+            return bundle.page;
         } catch (err) {
             lastError = err;
+
+            try { await bundle.page.close(); } catch {}
+
+            bundle.page = await newPage(bundle.browser);
 
             if (i < attempts - 1) {
                 await new Promise(r => setTimeout(r, delayMs));

@@ -9,23 +9,20 @@ export const site: Site = {
     rank: 2,
     check: async function(): Promise<Story[]> {
         try {
-            const { page } = await getCurrentBrowser();
+            const bundle = await getCurrentBrowser();
 
-            await gotoWithRetry(page, "https://www.nzherald.co.nz/", {
+            await gotoWithRetry(bundle, "https://www.nzherald.co.nz/", {
                 attempts: 10,
                 timeout: 3_000,
             });
 
-            await page.waitForFunction(() => {
+            await bundle.page.waitForFunction(() => {
                 const articles = document.querySelectorAll('section[data-test-ui="top-hero-section"] article');
 
                 if (articles.length < 10) return false;
 
                 for (const article of articles) {
-                    const titleEl = article.querySelector(
-                        '[data-test-ui="story-card--headline"]'
-                    );
-
+                    const titleEl = article.querySelector('[data-test-ui="story-card--headline"]');
                     if (!titleEl) return false;
 
                     const title = titleEl.textContent?.trim();
@@ -35,7 +32,7 @@ export const site: Site = {
                 return true;
             }, { timeout: 10_000 });
 
-            return await page.evaluate(() => {
+            return await bundle.page.evaluate(() => {
                 const results: Story[] = [];
                 const seenLinks = new Set();
 
