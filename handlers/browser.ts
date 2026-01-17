@@ -6,20 +6,30 @@ export type BrowserBundle = {
     launchedAt: number;
 };
 
-async function newPage(browser: puppeteer.Browser) {
-    const page = await browser.newPage();
-    await page.setRequestInterception(true);
+async function newPage(browser: puppeteer.Browser, attempts = 3) {
+    for (let i = 0; i < attempts; i++) {
+        try {
+            const page = await browser.newPage();
+            await page.setRequestInterception(true);
 
-    page.on("request", (req) => {
-        const t = req.resourceType();
-        if (["image", "stylesheet", "font", "media"].includes(t)) {
-            req.abort();
-        } else {
-            req.continue();
+            page.on("request", (req) => {
+                const t = req.resourceType();
+                if (["image", "stylesheet", "font", "media"].includes(t)) {
+                    req.abort();
+                } else {
+                    req.continue();
+                }
+            });
+
+            return page;
+        } catch {
+            try { await browser.close(); } catch {}
+            const bundle = await launchBrowser();
+            browser = bundle.browser;
         }
-    });
+    }
 
-    return page;
+    throw new Error("Failed to create a new page after retries");
 }
 
 
